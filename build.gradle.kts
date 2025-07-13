@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.1.21"
+    kotlin("plugin.serialization") version "2.1.21"
 }
 
 group = "campo.server"
@@ -15,6 +16,9 @@ dependencies {
 
     implementation("io.vertx:vertx-mysql-client:5.0.1")
     implementation("io.vertx:vertx-auth-sql-client:5.0.1")
+    
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.21")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 
     testImplementation(kotlin("test"))
 }
