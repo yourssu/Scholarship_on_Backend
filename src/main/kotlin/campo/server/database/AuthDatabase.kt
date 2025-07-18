@@ -13,6 +13,9 @@ import io.vertx.jdbcclient.JDBCPool
 import io.vertx.sqlclient.PoolOptions
 import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
+import java.io.File
+
+
 
 
 class AuthDatabase(vertx: Vertx) {
@@ -22,6 +25,8 @@ class AuthDatabase(vertx: Vertx) {
 
     init {
         val dotenv = dotenv()
+
+        File("./scholarship/").mkdir()
 
         val connectOptions = JDBCConnectOptions()
             .setJdbcUrl("jdbc:sqlite:${dotenv["DB_URL"]}")
@@ -37,6 +42,12 @@ class AuthDatabase(vertx: Vertx) {
             SqlAuthenticationOptions().setAuthenticationQuery("SELECT password FROM users WHERE email = ?"))
 
         createUserTable()
+
+        val dbFile = File("./scholarship/auth.sqlite")
+        logger.info("DB file absolute path: " + dbFile.absolutePath)
+        logger.info("DB file exists: " + dbFile.exists())
+        logger.info("Parent directory exists: " + dbFile.getParentFile().exists())
+
     }
 
     fun getSqlAuth() = sqlAuth
