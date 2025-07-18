@@ -14,8 +14,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  build-and-docker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,7 +46,7 @@ jobs:
 
     # Docker 이미지 Build
     - name: docker image build
-    - run: docker build -t ${{ secrets.DOCKER_ID }}/scholarship-on-backend .
+      run: docker build -t ${{ secrets.DOCKER_ID }}/scholarship-on-backend .
 
       # DockerHub Login (push 하기 위해)
     - name: docker login
