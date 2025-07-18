@@ -24,11 +24,11 @@ jobs:
 
     - name: Create dotenv
       run: |
-        touch .env
+        touch ./src/main/resources/.env
         echo DB_URL=${{ secrets.DB_URL }} >> .env
         echo DB_USER=${{ secrets.DB_USER }} >> .env
         echo DB_PASS=${{ secrets.DB_PASS }} >> .env
-        cat .env
+        cat ./src/main/resources/.env
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -44,7 +44,7 @@ jobs:
     - name: Build with Gradle Wrapper
       run: |
         ./gradlew shadowJar
-        ls
+        
 
     # Docker 이미지 Build
     - name: docker image build
