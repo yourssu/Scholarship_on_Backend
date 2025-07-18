@@ -1,6 +1,8 @@
 plugins {
     kotlin("jvm") version "2.1.21"
     kotlin("plugin.serialization") version "2.1.21"
+
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "campo.server"
@@ -26,6 +28,12 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("io.vertx:vertx-junit5:5.0.1")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+}
+
+tasks.shadowJar {
+    manifest {
+        attributes(mapOf("Main-Class" to "campo.server.ScholarshipKt"))
+    }
 }
 
 tasks.test {
