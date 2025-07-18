@@ -1,16 +1,17 @@
 package campo.server
 
-import campo.server.annotation.RouteDesc
+import campo.server.database.AuthDatabase
 import campo.server.route.Auth
 import campo.server.route.Common
 import campo.server.route.Docs
 import campo.server.route.ScholarshipInfo
+import campo.server.util.ResponseUtil
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.core.internal.logging.LoggerFactory
-import io.vertx.ext.web.Route
 import io.vertx.ext.web.Router
+import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
 import io.vertx.ext.web.handler.SessionHandler
 import io.vertx.ext.web.sstore.LocalSessionStore
@@ -27,6 +28,7 @@ fun main() {
     val vertx = Vertx.vertx()
     val mainRouter = Router.router(vertx)
 
+    AuthDatabase(vertx)
 
     // Session
     mainRouter.route().handler(
@@ -38,6 +40,10 @@ fun main() {
 
     // multipart
     mainRouter.route().handler(BodyHandler.create())
+        .failureHandler {
+            logger.error(it.failure().localizedMessage)
+            ResponseUtil.badRequest(it, it.failure().localizedMessage)
+        }
 
     // 라우터 인스턴스 생성 및 등록
     mainRouter.route("/api/auth/*").subRouter(Auth(vertx))
@@ -45,61 +51,34 @@ fun main() {
     mainRouter.route("/docs/*").subRouter(Docs(vertx))
     mainRouter.route("/common/*").subRouter(Common(vertx))
 
-    mainRouter.get("/").handler { context ->
-        val sb = StringBuilder()
+//    mainRouter.get("/").handler { context ->
+//        context.response()
+//            .setStatusCode(200)
+//            .putHeader("Content-Type", "text/html; charset=utf-8")
+//            .sendFile("web/index.html")
+//
+//    }
 
-        /**
-         *
-         */
 
-        val commonClass = Common::class.java
-        sb.append("<h3>" + (commonClass.annotations.find { it is RouteDesc } as RouteDesc).description + "</h3><ul>")
-        for (method in commonClass.declaredMethods) {
-            val desc = method.annotations.forEach {
-                if(it is RouteDesc) {
-                    sb.append("<li>" +  it.path + " (" + it.description + ")</li>")
-                }
-            }
+    // 그 이외의 접근은 웹 파일로 간주
+    mainRouter.route().handler(Handler { req: RoutingContext? ->
+        var file: String? = ""
+        if (req!!.request().path() == "/") {
+            file = "index.html"
+        } else if (!req.request().path().contains("..")) { // 상위 폴더로 못가게
+            file = req.request().path()
         }
-        sb.append("</ul>")
-
-        /**
-         *
-         */
-
-        val authClass = Auth::class.java
-        sb.append("<h3>" + (authClass.annotations.find { it is RouteDesc } as RouteDesc).description + "</h3><ul>")
-        for (method in authClass.declaredMethods) {
-            val desc = method.annotations.forEach {
-                if(it is RouteDesc) {
-                    sb.append("<li>" +  it.path + " (" + it.description + ")</li>")
-                }
-            }
-        }
-        sb.append("</ul>")
-
-        /**
-         *
-         */
-
-        val infoClass = ScholarshipInfo::class.java
-        sb.append("<h3>" + (infoClass.annotations.find { it is RouteDesc } as RouteDesc).description + "</h3><ul>")
-        for (method in infoClass.declaredMethods) {
-            val desc = method.annotations.forEach {
-                if(it is RouteDesc) {
-                    sb.append("<li>" +  it.path + " (" + it.description + ")</li>")
-                }
-            }
-        }
-        sb.append("</ul>")
-
-
-        context.response()
+        req.response()
             .setStatusCode(200)
             .putHeader("Content-Type", "text/html; charset=utf-8")
-            .end(sb.toString())
-
-    }
+            .sendFile("web/$file")
+            .onFailure(Handler { err: Throwable? ->
+                req.response()
+                    .setStatusCode(404)
+                    .putHeader("Content-Type", "text/html; charset=utf-8")
+                    .end("NOT FOUND")
+            })
+    })
 
 
     // 개방

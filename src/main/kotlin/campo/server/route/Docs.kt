@@ -1,13 +1,12 @@
 package campo.server.route
 
-import campo.server.RouteDocGenerator
+import campo.server.util.RouteDocGenerator
 import campo.server.annotation.RouteDesc
 import io.vertx.core.Vertx
 import io.vertx.core.internal.logging.LoggerFactory
-import io.vertx.ext.web.impl.RouterImpl
 
 @RouteDesc("/docs", "API 문서를 제공합니다.")
-class Docs(vertx: Vertx) : RouterImpl(vertx) {
+class Docs(vertx: Vertx) : ScholarRouter(vertx) {
     val logger = LoggerFactory.getLogger(javaClass)
     private val docGenerator = RouteDocGenerator()
     

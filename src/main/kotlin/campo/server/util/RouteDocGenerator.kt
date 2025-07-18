@@ -1,7 +1,9 @@
-package campo.server
+package campo.server.util
 
 import campo.server.annotation.RouteDesc
 import campo.server.annotation.HttpMethodType
+import campo.server.annotation.Parameter
+import campo.server.annotation.ParameterType
 import campo.server.route.*
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.functions
@@ -13,7 +15,8 @@ data class RouteInfo(
     val methodName: String,
     val httpMethod: HttpMethodType,
     val successExample: String,
-    val errorExamples: Array<String>
+    val errorExamples: Array<String>,
+    val parameters: Array<Parameter>
 )
 
 class RouteDocGenerator {
@@ -42,7 +45,8 @@ class RouteDocGenerator {
                             methodName = function.name,
                             httpMethod = annotation.method,
                             successExample = annotation.successExample,
-                            errorExamples = annotation.errorExamples
+                            errorExamples = annotation.errorExamples,
+                            parameters = annotation.parameters
                         )
                     )
                 }
@@ -58,6 +62,61 @@ class RouteDocGenerator {
         val paths = routes.groupBy { it.path }.map { (path, routeList) ->
             val operations = routeList.map { route ->
                 val methodName = route.httpMethod.name.lowercase()
+                
+                // Parameters와 RequestBody 생성
+                val formParams = route.parameters.filter { it.type == ParameterType.FORM }
+                val otherParams = route.parameters.filter { it.type != ParameterType.FORM }
+                
+                val parametersJson = if (otherParams.isNotEmpty()) {
+                    val params = otherParams.map { param ->
+                        val paramIn = when (param.type) {
+                            ParameterType.QUERY -> "query"
+                            ParameterType.PATH -> "path"
+                            ParameterType.HEADER -> "header"
+                            else -> "query"
+                        }
+                        """
+                        {
+                            "name": "${param.name}",
+                            "in": "$paramIn",
+                            "description": "${param.description}",
+                            "required": ${param.required},
+                            "schema": {
+                                "type": "string",
+                                "example": "${param.example}"
+                            }
+                        }""".trimIndent()
+                    }.joinToString(",\n")
+                    """"parameters": [$params],"""
+                } else ""
+                
+                val requestBodyJson = if (formParams.isNotEmpty()) {
+                    val properties = formParams.map { param ->
+                        """"${param.name}": {
+                            "type": "string",
+                            "description": "${param.description}",
+                            "example": "${param.example}"
+                        }"""
+                    }.joinToString(",\n")
+                    
+                    val required = formParams.filter { it.required }.map { "\"${it.name}\"" }.joinToString(",")
+                    val requiredSection = if (required.isNotEmpty()) """"required": [$required],""" else ""
+                    
+                    """"requestBody": {
+                        "content": {
+                            "application/x-www-form-urlencoded": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        $properties
+                                    },
+                                    $requiredSection
+                                }
+                            }
+                        }
+                    },"""
+                } else ""
+                
                 val responses = buildString {
                     append("""
                         "200": {
@@ -103,6 +162,8 @@ class RouteDocGenerator {
                     "$methodName": {
                         "summary": "${route.description}",
                         "tags": ["${route.className}"],
+                        $parametersJson
+                        $requestBodyJson
                         "responses": {
                             $responses
                         }

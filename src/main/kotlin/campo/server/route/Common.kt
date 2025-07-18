@@ -8,7 +8,7 @@ import io.vertx.core.internal.logging.LoggerFactory
 import io.vertx.ext.web.impl.RouterImpl
 
 @RouteDesc(path = "/common", "각종 서식을 처리합니다.")
-class Common(vertx: Vertx) : RouterImpl(vertx) {
+class Common(vertx: Vertx) : ScholarRouter(vertx) {
     val logger = LoggerFactory.getLogger(javaClass)
 
     init {
@@ -21,8 +21,8 @@ class Common(vertx: Vertx) : RouterImpl(vertx) {
         get("/privacy").handler { context ->
             context.response()
                 .setStatusCode(200)
-                .putHeader("content-type", "text/plain; charset=utf-8")
-                .sendFile("privacy.txt")
+                .putHeader("content-type", "application/pdf; charset=utf-8")
+                .sendFile("privacy.pdf")
                 .onFailure {
                     context.response()
                         .setStatusCode(500)
@@ -37,8 +37,8 @@ class Common(vertx: Vertx) : RouterImpl(vertx) {
         get("/term").handler { context ->
             context.response()
                 .setStatusCode(200)
-                .putHeader("content-type", "text/plain; charset=utf-8")
-                .sendFile("term.txt")
+                .putHeader("content-type", "application/pdf; charset=utf-8")
+                .sendFile("term.pdf")
                 .onFailure {
                     context.response()
                         .setStatusCode(500)

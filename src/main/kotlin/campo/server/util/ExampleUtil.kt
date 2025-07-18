@@ -103,7 +103,7 @@ object ExampleUtil {
         fun userInfo(
             id: Long = 1, 
             email: String = "user@example.com", 
-            school: String = "서울대학교",
+            school: String = "숭실대학교",
             grade: String = "3학년"
         ): String {
             return success("사용자 정보 조회 성공", mapOf(

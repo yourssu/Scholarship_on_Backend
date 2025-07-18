@@ -8,7 +8,7 @@ import io.vertx.core.internal.logging.LoggerFactory
 import io.vertx.ext.web.impl.RouterImpl
 
 @RouteDesc("/info", "장학금 관련 정보를 관리합니다.")
-class ScholarshipInfo(vertx: Vertx) : RouterImpl(vertx) {
+class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
     val logger = LoggerFactory.getLogger(javaClass)
 
     init {

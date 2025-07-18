@@ -1,5 +1,6 @@
 package campo.server.util
 
+import campo.server.data.JsonResponse
 import io.vertx.ext.web.RoutingContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -14,7 +15,7 @@ data class ApiResponse<T>(
 )
 
 object ResponseUtil {
-    private val json = Json {
+    val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
     }
@@ -27,12 +28,25 @@ object ResponseUtil {
         )
         sendJson(context, 200, response)
     }
+
+    inline fun <reified T> successTyped(context: RoutingContext, message: String = "성공", data: T? = null) {
+        val response = ApiResponse(
+            success = true,
+            message = message,
+            data = data
+        )
+        val jsonString = json.encodeToString(response)
+        context.response()
+            .setStatusCode(200)
+            .putHeader("content-type", "application/json; charset=utf-8")
+            .end(jsonString)
+    }
     
     fun badRequest(context: RoutingContext, message: String = "잘못된 요청입니다.", error: String? = null) {
         val response = ApiResponse<Nothing>(
             success = false,
             message = message,
-            error = error
+            error = error ?: "Bad Request"
         )
         sendJson(context, 400, response)
     }
@@ -85,7 +99,11 @@ object ResponseUtil {
     
     private fun sendJson(context: RoutingContext, statusCode: Int, response: ApiResponse<*>) {
         try {
-            val jsonString = json.encodeToString(response)
+            val jsonString = when {
+                response.data != null -> json.encodeToString(response as ApiResponse<JsonResponse>)
+                else -> json.encodeToString(response as ApiResponse<Nothing?>)
+            }
+
             context.response()
                 .setStatusCode(statusCode)
                 .putHeader("content-type", "application/json; charset=utf-8")
