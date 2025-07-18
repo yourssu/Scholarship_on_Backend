@@ -9,7 +9,9 @@ import campo.server.util.ResponseUtil
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
+import io.vertx.core.http.HttpServerOptions
 import io.vertx.core.internal.logging.LoggerFactory
+import io.vertx.core.net.SelfSignedCertificate
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
@@ -34,7 +36,7 @@ fun main() {
     mainRouter.route().handler(
         SessionHandler.create(LocalSessionStore.create(vertx))
             .setCookieHttpOnlyFlag(true)
-//            .setCookieSecureFlag(true) // HTTPS 관련 문제 발생 시 삭제 (HTTP 에서 비정상 동작할 수 있음)
+            .setCookieSecureFlag(true) // HTTPS 관련 문제 발생 시 삭제 (HTTP 에서 비정상 동작할 수 있음)
             .setSessionTimeout(1800000)
     )
 
@@ -80,12 +82,17 @@ fun main() {
             })
     })
 
-
+    val certificate: SelfSignedCertificate = SelfSignedCertificate.create()
     // 개방
-    val server = vertx.createHttpServer()
-    server.requestHandler(mainRouter).listen(HTTP_PORT).onSuccess {server: HttpServer ->
+    val server = vertx.createHttpServer(HttpServerOptions()
+        .setSsl(true)
+        .setKeyCertOptions(certificate.keyCertOptions())
+        .setTrustOptions(certificate.trustOptions())
+    )
+
+    server.requestHandler(mainRouter).listen(HTTPS_PORT).onSuccess {server: HttpServer ->
         logger.info(SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date()) + "부로 서버 개통되었습니다.")
-        logger.info("http://" + InetAddress.getLocalHost().hostAddress + ":" + server.actualPort())
+        logger.info("https://" + InetAddress.getLocalHost().hostAddress + ":" + server.actualPort())
     }
 
 }
