@@ -14,8 +14,11 @@ import io.vertx.sqlclient.PoolOptions
 import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
 import java.io.File
-
-
+import java.sql.Connection
+import java.sql.DatabaseMetaData
+import java.sql.DriverManager
+import java.sql.ResultSet
+import java.sql.Statement
 
 
 class AuthDatabase(vertx: Vertx) {
@@ -43,11 +46,10 @@ class AuthDatabase(vertx: Vertx) {
 
         createUserTable()
 
-        val dbFile = File("./scholarship/auth.sqlite")
-        logger.info("DB file absolute path: " + dbFile.absolutePath)
-        logger.info("DB file exists: " + dbFile.exists())
-        logger.info("Parent directory exists: " + dbFile.getParentFile().exists())
-
+        logger.info("DB 위치 확인 중")
+        checkDBLocation().onSuccess {
+            logger.info(it)
+        }
     }
 
     fun getSqlAuth() = sqlAuth
@@ -79,6 +81,13 @@ class AuthDatabase(vertx: Vertx) {
         VertxContextPRNG.current().nextString(32),  // secure random salt
         password
     )
+
+    private fun checkDBLocation(): Future<String> {
+        val sql = "PRAGMA database_list;"
+        return pool.preparedQuery(sql).execute().map {
+            it.iterator().next().getString("file")
+        }
+    }
 
     
     fun registerUser(user: User): Future<Long> {
