@@ -94,7 +94,7 @@ fun main() {
         logger.info(SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date()) + "부로 서버 개통되었습니다.")
         logger.info("https://" + InetAddress.getLocalHost().hostAddress + ":" + server.actualPort())
     }.onFailure {
-        logger.info(it.localizedMessage)
+        logger.error(it.localizedMessage)
     }
 
 }

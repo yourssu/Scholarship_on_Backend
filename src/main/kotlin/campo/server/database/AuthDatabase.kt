@@ -85,7 +85,8 @@ class AuthDatabase(vertx: Vertx) {
     private fun checkDBLocation(): Future<String> {
         val sql = "PRAGMA database_list;"
         return pool.preparedQuery(sql).execute().map {
-            it.iterator().next().getString("file")
+            val row = it.iterator().next()
+            row.getString("file") + " " + row.getString("seq") + " " + row.getString("name")
         }
     }
 

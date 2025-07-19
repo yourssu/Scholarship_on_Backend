@@ -25,9 +25,9 @@ jobs:
     - name: Create dotenv
       run: |
         touch ./src/main/resources/.env
-        echo DB_URL=${{ secrets.DB_URL }} >> .env
-        echo DB_USER=${{ secrets.DB_USER }} >> .env
-        echo DB_PASS=${{ secrets.DB_PASS }} >> .env
+        echo DB_URL=${{ secrets.DB_URL }} >> ./src/main/resources/.env
+        echo DB_USER=${{ secrets.DB_USER }} >> ./src/main/resources/.env
+        echo DB_PASS=${{ secrets.DB_PASS }} >> ./src/main/resources/.env
         cat ./src/main/resources/.env
 
     - name: Set up JDK 21
