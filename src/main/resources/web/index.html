@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>장학온</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
             integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
@@ -27,15 +28,73 @@
     </div>
 </div>
 
-<div class="d-inline-block card h-100 p-3 bg-white shadow justify-content-center">
-    <iframe class="bg-white rounded" id="loginframe" src="login.html"></iframe>
+<div class="container-fluid">
+    <div class="row">
+        <!-- 로그인/계정 관리 섹션 -->
+        <div class="col-12 col-lg-4 mb-4 mb-lg-0">
+            <div class="card h-100 p-3 bg-white shadow">
+                <iframe class="bg-white rounded" id="loginframe" src="login.html"></iframe>
+            </div>
+        </div>
+        
+        <!-- 장학금 목록 섹션 -->
+        <div class="col-12 col-lg-8">
+            <div class="card bg-white shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">장학금 공고 목록</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 검색 및 필터 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" id="searchInput" placeholder="장학금명 또는 기관명 검색">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="pageSize">
+                                <option value="5" selected>5개씩 보기</option>
+                                <option value="10">10개씩 보기</option>
+                                <option value="20">20개씩 보기</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100" id="searchBtn">검색</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 장학금 목록 -->
+                    <div id="scholarshipList">
+                        <div class="text-center p-4">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">장학금 정보를 불러오고 있습니다...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 페이지네이션 -->
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center" id="pagination">
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 
 <footer class="pt-4 my-md-5 pt-md-5 border-top text-center">
-    <a class="text-muted link-underline link-underline-opacity-0 mx-3" href="common/term">이용약관</a>
-    <a class="text-muted link-underline link-underline-opacity-0 mx-3" href="common/privacy">개인정처리방침</a>
-    <a class="text-muted link-underline link-underline-opacity-0 mx-3" href="docs/">개발문서 (Swagger UI)</a>
+    <div class="row">
+        <div class="col-12 col-md">
+            <a class="text-muted link-underline link-underline-opacity-0 mx-3" href="common/term">이용약관</a>
+        </div>
+        <div class="col-12 col-md">
+            <a class="text-muted link-underline link-underline-opacity-0 mx-3" href="common/privacy">개인정보처리방침</a>
+        </div>
+        <div class="col-12 col-md">
+            <a class="text-muted link-underline link-underline-opacity-0 mx-3" href="docs/">개발문서 (Swagger UI)</a>
+        </div>
+    </div>
 </footer>
 <script src="js/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"

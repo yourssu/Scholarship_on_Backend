@@ -20,13 +20,20 @@ object ResponseUtil {
         ignoreUnknownKeys = true
     }
     
-    fun success(context: RoutingContext, message: String = "성공", data: Any? = null) {
+    fun success(context: RoutingContext, message: String = "성공") {
         val response = ApiResponse(
             success = true,
             message = message,
-            data = data
+            data = null
         )
         sendJson(context, 200, response)
+    }
+
+    fun successJson(context: RoutingContext, message: String = "성공", jsonData: String) {
+        context.response()
+            .setStatusCode(200)
+            .putHeader("content-type", "application/json; charset=utf-8")
+            .end("""{"success":true,"message":"$message","data":$jsonData}""")
     }
 
     inline fun <reified T> successTyped(context: RoutingContext, message: String = "성공", data: T? = null) {

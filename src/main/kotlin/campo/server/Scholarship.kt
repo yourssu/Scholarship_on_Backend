@@ -9,9 +9,7 @@ import campo.server.util.ResponseUtil
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
-import io.vertx.core.http.HttpServerOptions
 import io.vertx.core.internal.logging.LoggerFactory
-import io.vertx.core.net.SelfSignedCertificate
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
@@ -23,8 +21,7 @@ import java.util.*
 
 val logger = LoggerFactory.getLogger("Scholarship")
 
-val HTTP_PORT = 80
-val HTTPS_PORT = 443
+const val HTTP_PORT = 80
 
 fun main() {
     val vertx = Vertx.vertx()
@@ -82,17 +79,12 @@ fun main() {
             })
     })
 
-    val certificate: SelfSignedCertificate = SelfSignedCertificate.create()
     // 개방
-    val server = vertx.createHttpServer(HttpServerOptions()
-        .setSsl(true)
-        .setKeyCertOptions(certificate.keyCertOptions())
-        .setTrustOptions(certificate.trustOptions())
-    )
+    val server = vertx.createHttpServer()
 
-    server.requestHandler(mainRouter).listen(HTTPS_PORT).onSuccess {server: HttpServer ->
+    server.requestHandler(mainRouter).listen(HTTP_PORT).onSuccess {server: HttpServer ->
         logger.info(SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date()) + "부로 서버 개통되었습니다.")
-        logger.info("https://" + InetAddress.getLocalHost().hostAddress + ":" + server.actualPort())
+        logger.info("http://" + InetAddress.getLocalHost().hostAddress + ":" + server.actualPort())
     }.onFailure {
         logger.error(it.localizedMessage)
     }

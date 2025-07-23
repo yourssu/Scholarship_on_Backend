@@ -14,11 +14,6 @@ import io.vertx.sqlclient.PoolOptions
 import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
 import java.io.File
-import java.sql.Connection
-import java.sql.DatabaseMetaData
-import java.sql.DriverManager
-import java.sql.ResultSet
-import java.sql.Statement
 
 
 class AuthDatabase(vertx: Vertx) {
@@ -45,11 +40,6 @@ class AuthDatabase(vertx: Vertx) {
             SqlAuthenticationOptions().setAuthenticationQuery("SELECT password FROM users WHERE email = ?"))
 
         createUserTable()
-
-        logger.info("DB 위치 확인 중")
-        checkDBLocation().onSuccess {
-            logger.info(it)
-        }
     }
 
     fun getSqlAuth() = sqlAuth

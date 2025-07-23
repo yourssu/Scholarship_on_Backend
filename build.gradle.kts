@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "campo.server"
-version = "0.2-SNAPSHOT"
+version = "0.3-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -24,6 +24,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 
     implementation("io.github.cdimascio:dotenv-kotlin:6.5.1")
+
+    implementation("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2")
 
     testImplementation(kotlin("test"))
     testImplementation("io.vertx:vertx-junit5:5.0.1")
