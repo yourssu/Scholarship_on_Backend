@@ -40,6 +40,7 @@ fun main() {
     // multipart
     mainRouter.route().handler(BodyHandler.create())
         .failureHandler {
+            it.failure().printStackTrace()
             logger.error(it.failure().localizedMessage)
             ResponseUtil.badRequest(it, it.failure().localizedMessage)
         }
@@ -60,7 +61,7 @@ fun main() {
 
 
     // 그 이외의 접근은 웹 파일로 간주
-    mainRouter.route().handler(Handler { req: RoutingContext? ->
+    mainRouter.route().handler { req: RoutingContext? ->
         var file: String? = ""
         if (req!!.request().path() == "/") {
             file = "index.html"
@@ -77,7 +78,7 @@ fun main() {
                     .putHeader("Content-Type", "text/html; charset=utf-8")
                     .end("NOT FOUND")
             })
-    })
+    }
 
     // 개방
     val server = vertx.createHttpServer()

@@ -89,15 +89,92 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
     @RouteDesc(
         "/api/info/recommendation",
-        "사용자 개인 조건에 맞는 장학금 공고 조회",
+        "사용자 개인 조건에 맞는 장학금 공고 조회 (로그인 필요)",
         HttpMethodType.GET,
         ApiExamples.SCHOLARSHIP_LIST_SUCCESS,
         [
+            ApiExamples.UNAUTHORIZED,
             ApiExamples.NO_MATCHING_SCHOLARSHIPS
         ]
     )
     fun recommendation() {
+        get("/recommendation").handler { context ->
+            if(!isLoggedIn(context)) {
+                ResponseUtil.unauthorized(context)
+                return@handler
+            }
 
+            val user = getUserInfo(context)
+            if (user == null) {
+                ResponseUtil.badRequest(context, "사용자 정보를 찾을 수 없습니다.")
+                return@handler
+            }
+
+            val filteredScholarships = df.dropNulls("학년구분")
+                .dropNulls("학과구분")
+                .dropNulls("지역거주여부 상세내용")
+                .dropNulls("소득기준 상세내용")
+                .dropNulls("성적기준 상세내용")
+                .filter { row ->
+                    // 학년 조건 확인 (학년을 학기로 변환)
+                    val classCondition = "학년구분"<String>()
+                    val classMatch = classCondition == "해당없음" || 
+                        classCondition.split("/").any { semester ->
+                            val userSemesters = getSemestersFromClass(user.classOfSchool)
+                            userSemesters.any { userSemester -> semester.contains("${userSemester}학기") }
+                        }
+                    
+                    // 전공 조건 확인  
+                    val majorCondition = "학과구분"<String>()
+                    val majorMatch = majorCondition == "해당없음" || 
+                        majorCondition.contains(user.majorOfSchool) ||
+                        majorCondition.contains("전체학과")
+                    
+                    // 거주지 조건 확인
+                    val locationCondition = "지역거주여부 상세내용"<String>()
+                    val locationMatch = locationCondition == "해당없음" || 
+                        locationCondition.contains(user.location)
+                    
+                    // 소득 조건 확인 (소득분위가 낮을수록 조건에 부합)
+                    val incomeCondition = "소득기준 상세내용"<String>()
+                    val incomeMatch = incomeCondition == "해당없음" || 
+                        incomeCondition.contains("제한없음") ||
+                        incomeCondition.contains("${user.levelOfIncome}분위")
+                    
+                    // 성적 조건 확인 (문자열에서 숫자 추출하여 비교)
+                    val gradeCondition = "성적기준 상세내용"<String>()
+                    val gradeMatch = gradeCondition == "해당없음" || 
+                        gradeCondition.contains("제한없음") ||
+                        extractGradeFromString(gradeCondition)?.let { requiredGrade ->
+                            user.grade >= requiredGrade
+                        } ?: true
+                    
+                    classMatch && majorMatch && locationMatch && incomeMatch && gradeMatch
+                }
+                .sortByDesc { "모집종료일"<LocalDate>() }
+
+            ResponseUtil.successJson(context, "개인별 장학금 공고를 불러왔습니다.",
+                filteredScholarships.toJson()
+            )
+        }
+    }
+
+    private fun extractGradeFromString(gradeString: String): Double? {
+        val regex = Regex("""(\d+\.?\d*)\s*이상""")
+        val matchResult = regex.find(gradeString)
+        return matchResult?.groupValues?.get(1)?.toDoubleOrNull()
+    }
+
+    private fun getSemestersFromClass(classYear: Int): List<Int> {
+        return when (classYear) {
+            1 -> listOf(1, 2)
+            2 -> listOf(3, 4)
+            3 -> listOf(5, 6)
+            4 -> listOf(7, 8)
+            5 -> listOf(9, 10)
+            6 -> listOf(11, 12)
+            else -> emptyList()
+        }
     }
 
 //    @RouteDesc(
@@ -130,6 +207,7 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
             val keywords = context.request().getParam("keywords") ?: ""
             if(keywords.isBlank() || keywords.isEmpty()) {
                 ResponseUtil.badRequest(context, "검색어를 넣어주세요.")
+                return@handler
             }
             ResponseUtil.successJson(context, "장학금 공고를 불러왔습니다.",
                 df.dropNulls("운영기관명").dropNulls("상품명").filter {

@@ -155,7 +155,12 @@ class Auth(vertx: Vertx) : ScholarRouter(vertx) {
             if(isLoggedIn(context)) {
                 authDB.getUserByEmail(getEmailFromLoggedIn(context))
                     .onSuccess { user ->
-                        ResponseUtil.successTyped(context, "회원정보를 성공적으로 불러왔습니다.", user)
+                        if(user != null) {
+                            setUserInfo(context, user)
+                            ResponseUtil.successTyped(context, "회원정보를 성공적으로 불러왔습니다.", user)
+                        } else {
+                            ResponseUtil.internalServerError(context, "회원정보를 불러오지 못했습니다.")
+                        }
                     }.onFailure {
                         logger.error(it)
                         ResponseUtil.internalServerError(context, it.localizedMessage)
@@ -186,6 +191,9 @@ class Auth(vertx: Vertx) : ScholarRouter(vertx) {
     )
     fun editUserInfo() {
         put("/").handler { context ->
+            if(!isLoggedIn(context)) {
+                ResponseUtil.unauthorized(context)
+            }
 
             val email = context.request().getFormAttribute("email") ?: ""
             val password = context.request().getFormAttribute("password") ?: ""

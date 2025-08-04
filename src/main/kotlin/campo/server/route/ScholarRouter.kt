@@ -1,14 +1,24 @@
 package campo.server.route
 
+import campo.server.data.User
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.impl.RouterImpl
 
-open class ScholarRouter(val vertx: Vertx) : RouterImpl(vertx) {
+open class ScholarRouter(vertx: Vertx) : RouterImpl(vertx) {
     fun setLoggedIn(context: RoutingContext, user: JsonObject) {
         context.session().put("user", user)
         context.session().put("authenticated", true)
+    }
+
+    fun setUserInfo(context: RoutingContext, user: User) {
+        context.session().put("user", user)
+        context.session().put("authenticated", true)
+    }
+
+    fun getUserInfo(context: RoutingContext) : User? {
+        return context.session().get("user")
     }
 
     fun isLoggedIn(context: RoutingContext): Boolean {
@@ -19,8 +29,13 @@ open class ScholarRouter(val vertx: Vertx) : RouterImpl(vertx) {
         }
     }
 
-    fun getEmailFromLoggedIn(context: RoutingContext): String =
-        context.session().get<JsonObject>("user").getString("username")
+    fun getEmailFromLoggedIn(context: RoutingContext): String {
+        return try {
+            context.session().get<JsonObject>("user").getString("username")
+        } catch(e: Exception) {
+            context.session().get<User>("user").email
+        }
+    }
 
     fun logout(context: RoutingContext) {
         context.session().put("user", null)

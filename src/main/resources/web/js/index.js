@@ -4,6 +4,7 @@ let currentPageSize = 5
 let totalScholarships = 0
 let scholarshipData = []
 let isSearchMode = false
+let isRecommendMode = false
 let currentSearchKeyword = ""
 
 $(document).ready(function () {
@@ -13,6 +14,11 @@ $(document).ready(function () {
     // 검색 버튼 클릭
     $("#searchBtn").click(function() {
         loadScholarships()
+    })
+    
+    // 나만의 추천 버튼 클릭
+    $("#recommendBtn").click(function() {
+        loadRecommendedScholarships()
     })
     
     // 페이지 크기 변경
@@ -136,6 +142,7 @@ $("#loginframe").on("load", function () {
             method: "PUT",
             body: formData
         }).then(response => response.json()).then((data) => {
+            console.log("회원정보 수정 요청 전송")
             if(data.success) {
                 checkUser()
                 showToast(data.message, false)
@@ -239,6 +246,9 @@ function fillUserInfo() {
 function loadScholarships() {
     const searchQuery = $("#searchInput").val().trim()
     
+    // 추천 모드 해제
+    isRecommendMode = false
+    
     // 검색어가 있으면 검색 모드, 없으면 전체 목록 모드
     if (searchQuery.length > 0) {
         isSearchMode = true
@@ -308,6 +318,50 @@ function loadScholarships() {
             console.error(error)
         })
     }
+}
+
+// 나만의 추천 장학금 로드
+function loadRecommendedScholarships() {
+    // 로그인 체크
+    if (!user) {
+        showToast("로그인이 필요한 서비스입니다.", true)
+        return
+    }
+    
+    // 추천 모드 설정
+    isRecommendMode = true
+    isSearchMode = false
+    currentSearchKeyword = ""
+    
+    // 검색 입력 필드 초기화
+    $("#searchInput").val("")
+    
+    // 추천 API 호출
+    fetch('api/info/recommendation', {
+        method: "GET"
+    }).then(response => response.json())
+    .then((data) => {
+        if (data.success) {
+            scholarshipData = data.data
+            
+            // 추천 결과는 페이지네이션 없이 모든 결과 표시
+            renderScholarshipList(scholarshipData)
+            
+            // 추천 결과에는 페이지네이션 숨김
+            $("#pagination").html("")
+            
+            if (scholarshipData.length === 0) {
+                showToast("회원님의 조건에 맞는 장학금이 없습니다.", false)
+            } else {
+                showToast(`회원님께 맞춤 추천된 장학금 ${scholarshipData.length}개를 찾았습니다.`, false)
+            }
+        } else {
+            showToast("추천 장학금을 불러오는데 실패했습니다.", true)
+        }
+    }).catch((error) => {
+        showToast("네트워크 오류가 발생했습니다.", true)
+        console.error(error)
+    })
 }
 
 // 장학금 목록 렌더링
