@@ -5,11 +5,24 @@ let totalScholarships = 0
 let scholarshipData = []
 let isSearchMode = false
 let isRecommendMode = false
+let isFilterMode = false
 let currentSearchKeyword = ""
+let currentPagination = null
+let currentFilterValues = {
+    classOfSchool: "",
+    majorOfSchool: "",
+    location: "",
+    levelOfIncome: "",
+    grade: ""
+}
 
 $(document).ready(function () {
     checkUser()
-    loadScholarships()
+    
+    // URL에서 상태 복원 시도
+    if (!restoreFromURL()) {
+        loadScholarships()
+    }
     
     // 검색 버튼 클릭
     $("#searchBtn").click(function() {
@@ -18,14 +31,37 @@ $(document).ready(function () {
     
     // 나만의 추천 버튼 클릭
     $("#recommendBtn").click(function() {
-        loadRecommendedScholarships()
+        if (user) {
+            loadRecommendedScholarships()
+        } else {
+            // 비로그인 사용자에게 필터 옵션 제공
+            toggleFilterSection()
+        }
+    })
+    
+    // 필터 적용 버튼 클릭
+    $("#filterRecommendBtn").click(function() {
+        loadFilteredRecommendations()
+    })
+    
+    // 공유 버튼 클릭
+    $("#shareBtn").click(function() {
+        shareCurrentState()
     })
     
     // 페이지 크기 변경
     $("#pageSize").change(function() {
         currentPageSize = parseInt($(this).val())
         currentPage = 0
-        loadScholarships()
+        if (isFilterMode) {
+            loadFilteredRecommendations()
+        } else if (isSearchMode) {
+            loadScholarships()
+        } else if (isRecommendMode) {
+            loadRecommendedScholarships()
+        } else {
+            loadScholarships()
+        }
     })
     
     // 엔터키로 검색
@@ -246,33 +282,46 @@ function fillUserInfo() {
 function loadScholarships() {
     const searchQuery = $("#searchInput").val().trim()
     
-    // 추천 모드 해제
+    // 모드 초기화
     isRecommendMode = false
+    isFilterMode = false
+    hideFilterSection()
     
     // 검색어가 있으면 검색 모드, 없으면 전체 목록 모드
     if (searchQuery.length > 0) {
+        // 새로운 검색어인 경우에만 페이지 초기화
+        if (!isSearchMode || currentSearchKeyword !== searchQuery) {
+            currentPage = 0 // 새로운 검색시에만 페이지 초기화
+        }
         isSearchMode = true
         currentSearchKeyword = searchQuery
-        currentPage = 0 // 검색시 페이지 초기화
         
-        // 검색 API 호출
-        fetch(`api/info/search?keywords=${encodeURIComponent(searchQuery)}`, {
+        // 검색 API 호출 (새로운 페이지네이션 형식 사용)
+        fetch(`api/info/search?keywords=${encodeURIComponent(searchQuery)}&page=${currentPage}&each=${currentPageSize}`, {
             method: "GET"
         }).then(response => response.json())
         .then((data) => {
             if (data.success) {
-                scholarshipData = data.data
+                // 새로운 페이지네이션 형식 처리
+                if (data.data.scholarships) {
+                    scholarshipData = data.data.scholarships
+                    currentPagination = data.data.pagination
+                    renderScholarshipList(scholarshipData)
+                    renderPaginationFromData(currentPagination)
+                } else {
+                    // 기존 형식 대비
+                    scholarshipData = data.data
+                    renderScholarshipList(scholarshipData)
+                    $("#pagination").html("")
+                }
                 
-                // 검색 결과는 페이지네이션 없이 모든 결과 표시
-                renderScholarshipList(scholarshipData)
-                
-                // 검색 결과에는 페이지네이션 숨김
-                $("#pagination").html("")
+                showShareSection() // 공유 버튼 표시
                 
                 if (scholarshipData.length === 0) {
                     showToast(`"${searchQuery}"에 대한 검색 결과가 없습니다.`, false)
                 } else {
-                    showToast(`"${searchQuery}"에 대한 검색 결과 ${scholarshipData.length}개를 찾았습니다.`, false)
+                    const totalFound = currentPagination ? currentPagination.totalCount : scholarshipData.length
+                    showToast(`"${searchQuery}"에 대한 검색 결과 ${totalFound}개를 찾았습니다.`, false)
                 }
             } else {
                 showToast("검색에 실패했습니다.", true)
@@ -303,6 +352,7 @@ function loadScholarships() {
                         scholarshipData = data.data
                         renderScholarshipList(scholarshipData)
                         renderPagination()
+                        showShareSection() // 공유 버튼 표시
                     } else {
                         showToast("장학금 정보를 불러오는데 실패했습니다.", true)
                     }
@@ -320,7 +370,7 @@ function loadScholarships() {
     }
 }
 
-// 나만의 추천 장학금 로드
+// 나만의 추천 장학금 로드 (로그인 사용자용)
 function loadRecommendedScholarships() {
     // 로그인 체크
     if (!user) {
@@ -328,32 +378,138 @@ function loadRecommendedScholarships() {
         return
     }
     
-    // 추천 모드 설정
+    // 모드 설정 (페이지 초기화는 첫 호출시에만)
+    if (!isRecommendMode) {
+        currentPage = 0 // 새로운 추천 요청시에만 페이지 초기화
+        // UI 초기화
+        $("#searchInput").val("")
+        hideFilterSection()
+    }
+    
     isRecommendMode = true
+    isSearchMode = false
+    isFilterMode = false
+    currentSearchKeyword = ""
+    
+    // 추천 API 호출 (새로운 POST 방식 사용)
+    fetch(`api/info/recommendation?page=${currentPage}&each=${currentPageSize}`, {
+        method: "POST"
+    }).then(response => response.json())
+    .then((data) => {
+        if (data.success) {
+            // 새로운 페이지네이션 형식 처리
+            if (data.data.scholarships) {
+                scholarshipData = data.data.scholarships
+                currentPagination = data.data.pagination
+                renderScholarshipList(scholarshipData)
+                renderPaginationFromData(currentPagination)
+                
+                if (scholarshipData.length === 0) {
+                    showToast("회원님의 조건에 맞는 장학금이 없습니다.", false)
+                } else {
+                    const totalFound = currentPagination.totalCount
+                    showToast(`회원님께 맞춤 추천된 장학금 총 ${totalFound}개를 찾았습니다.`, false)
+                }
+            } else {
+                // 기존 형식 대비
+                scholarshipData = data.data
+                renderScholarshipList(scholarshipData)
+                $("#pagination").html("")
+                
+                if (scholarshipData.length === 0) {
+                    showToast("회원님의 조건에 맞는 장학금이 없습니다.", false)
+                } else {
+                    showToast(`회원님께 맞춤 추천된 장학금 ${scholarshipData.length}개를 찾았습니다.`, false)
+                }
+            }
+        } else {
+            showToast("추천 장학금을 불러오는데 실패했습니다.", true)
+        }
+    }).catch((error) => {
+        showToast("네트워크 오류가 발생했습니다.", true)
+        console.error(error)
+    })
+}
+
+// 필터 섹션 토글
+function toggleFilterSection() {
+    const filterSection = $("#filterSection")
+    if (filterSection.is(":visible")) {
+        hideFilterSection()
+    } else {
+        showFilterSection()
+    }
+}
+
+function showFilterSection() {
+    $("#filterSection").slideDown()
+    $("#searchInput").val("") // 검색어 초기화
+}
+
+function hideFilterSection() {
+    $("#filterSection").slideUp()
+}
+
+// 필터링된 추천 장학금 로드 (비로그인 사용자용)
+function loadFilteredRecommendations(isPageChange = false) {
+    // 필터 값들 가져오기 (페이지 변경이 아닌 경우에만 새로 읽어옴)
+    if (!isPageChange) {
+        currentFilterValues.classOfSchool = $("#filterClass").val()
+        currentFilterValues.majorOfSchool = $("#filterMajor").val()
+        currentFilterValues.location = $("#filterLocation").val().trim()
+        currentFilterValues.levelOfIncome = $("#filterIncome").val()
+        currentFilterValues.grade = $("#filterGrade").val()
+        currentPage = 0 // 새로운 필터 적용시에만 페이지 초기화
+    }
+    
+    // 모드 설정
+    isFilterMode = true
+    isRecommendMode = false
     isSearchMode = false
     currentSearchKeyword = ""
     
-    // 검색 입력 필드 초기화
-    $("#searchInput").val("")
+    // URL 매개변수 구성 (저장된 필터 값들 사용)
+    const params = new URLSearchParams()
+    if (currentFilterValues.classOfSchool) params.append('classOfSchool', currentFilterValues.classOfSchool)
+    if (currentFilterValues.majorOfSchool) params.append('majorOfSchool', currentFilterValues.majorOfSchool)
+    if (currentFilterValues.location) params.append('location', currentFilterValues.location)
+    if (currentFilterValues.levelOfIncome) params.append('levelOfIncome', currentFilterValues.levelOfIncome)
+    if (currentFilterValues.grade) params.append('grade', currentFilterValues.grade)
+    params.append('page', currentPage.toString())
+    params.append('each', currentPageSize.toString())
     
-    // 추천 API 호출
-    fetch('api/info/recommendation', {
+    // 필터링된 추천 API 호출 (GET 방식)
+    fetch(`api/info/recommendation?${params.toString()}`, {
         method: "GET"
     }).then(response => response.json())
     .then((data) => {
         if (data.success) {
-            scholarshipData = data.data
-            
-            // 추천 결과는 페이지네이션 없이 모든 결과 표시
-            renderScholarshipList(scholarshipData)
-            
-            // 추천 결과에는 페이지네이션 숨김
-            $("#pagination").html("")
-            
-            if (scholarshipData.length === 0) {
-                showToast("회원님의 조건에 맞는 장학금이 없습니다.", false)
+            // 새로운 페이지네이션 형식 처리
+            if (data.data.scholarships) {
+                scholarshipData = data.data.scholarships
+                currentPagination = data.data.pagination
+                renderScholarshipList(scholarshipData)
+                renderPaginationFromData(currentPagination)
+                showShareSection() // 공유 버튼 표시
+                
+                if (scholarshipData.length === 0) {
+                    showToast("설정하신 조건에 맞는 장학금이 없습니다.", false)
+                } else {
+                    const totalFound = currentPagination.totalCount
+                    showToast(`설정하신 조건에 맞는 장학금 총 ${totalFound}개를 찾았습니다.`, false)
+                }
             } else {
-                showToast(`회원님께 맞춤 추천된 장학금 ${scholarshipData.length}개를 찾았습니다.`, false)
+                // 기존 형식 대비
+                scholarshipData = data.data
+                renderScholarshipList(scholarshipData)
+                $("#pagination").html("")
+                showShareSection() // 공유 버튼 표시
+                
+                if (scholarshipData.length === 0) {
+                    showToast("설정하신 조건에 맞는 장학금이 없습니다.", false)
+                } else {
+                    showToast(`설정하신 조건에 맞는 장학금 ${scholarshipData.length}개를 찾았습니다.`, false)
+                }
             }
         } else {
             showToast("추천 장학금을 불러오는데 실패했습니다.", true)
@@ -419,7 +575,7 @@ function renderScholarshipList(scholarships) {
     listContainer.html(html)
 }
 
-// 페이지네이션 렌더링
+// 페이지네이션 렌더링 (기존 방식)
 function renderPagination() {
     const totalPages = Math.ceil(totalScholarships / currentPageSize)
     const pagination = $("#pagination")
@@ -460,11 +616,61 @@ function renderPagination() {
     pagination.html(html)
 }
 
+// 페이지네이션 렌더링 (새로운 API 응답 형식)
+function renderPaginationFromData(paginationData) {
+    const pagination = $("#pagination")
+    
+    if (!paginationData || paginationData.totalPages <= 1) {
+        pagination.html("")
+        return
+    }
+    
+    const { currentPage: apiCurrentPage, totalPages, hasNext, hasPrev } = paginationData
+    let html = ""
+    
+    // 이전 페이지
+    html += `
+        <li class="page-item ${!hasPrev ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${apiCurrentPage - 1})">이전</a>
+        </li>
+    `
+    
+    // 페이지 번호들
+    const startPage = Math.max(0, apiCurrentPage - 2)
+    const endPage = Math.min(totalPages - 1, apiCurrentPage + 2)
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <li class="page-item ${i === apiCurrentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i + 1}</a>
+            </li>
+        `
+    }
+    
+    // 다음 페이지
+    html += `
+        <li class="page-item ${!hasNext ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${apiCurrentPage + 1})">다음</a>
+        </li>
+    `
+    
+    pagination.html(html)
+}
+
 // 페이지 변경
 function changePage(page) {
     if (page < 0) return
     currentPage = page
-    loadScholarships()
+    
+    if (isFilterMode) {
+        loadFilteredRecommendations(true) // 페이지 변경임을 명시
+    } else if (isRecommendMode) {
+        loadRecommendedScholarships()
+    } else if (isSearchMode) {
+        loadScholarships()
+    } else {
+        loadScholarships()
+    }
 }
 
 // 날짜 포맷팅
@@ -544,4 +750,256 @@ function showScholarshipDetail(scholarshipId) {
     // 새 모달 추가 및 표시
     $("body").append(modalHtml)
     $("#scholarshipModal").modal('show')
+}
+
+// URL에서 상태 복원
+function restoreFromURL() {
+    const urlParams = new URLSearchParams(window.location.search)
+    
+    // 공유된 상태가 있는지 확인
+    const mode = urlParams.get('mode')  // 'search', 'filter', 'all'
+    const page = parseInt(urlParams.get('page')) || 0
+    const each = parseInt(urlParams.get('each')) || 5
+    
+    if (!mode) return false
+    
+    // 공통 설정
+    currentPage = page
+    currentPageSize = each
+    $("#pageSize").val(each.toString())
+    
+    if (mode === 'search') {
+        // 검색 모드 복원
+        const keywords = urlParams.get('keywords')
+        if (keywords) {
+            $("#searchInput").val(keywords)
+            currentSearchKeyword = keywords
+            isSearchMode = true
+            
+            // 검색 실행
+            fetch(`api/info/search?keywords=${encodeURIComponent(keywords)}&page=${currentPage}&each=${currentPageSize}`, {
+                method: "GET"
+            }).then(response => response.json())
+            .then((data) => {
+                if (data.success) {
+                    if (data.data.scholarships) {
+                        scholarshipData = data.data.scholarships
+                        currentPagination = data.data.pagination
+                        renderScholarshipList(scholarshipData)
+                        renderPaginationFromData(currentPagination)
+                        showShareSection()
+                    }
+                }
+            }).catch((error) => {
+                console.error(error)
+                return false
+            })
+            
+            return true
+        }
+    } else if (mode === 'filter') {
+        // 필터 모드 복원
+        const classOfSchool = urlParams.get('classOfSchool') || ""
+        const majorOfSchool = urlParams.get('majorOfSchool') || ""
+        const location = urlParams.get('location') || ""
+        const levelOfIncome = urlParams.get('levelOfIncome') || ""
+        const grade = urlParams.get('grade') || ""
+        
+        // 필터 값 설정
+        $("#filterClass").val(classOfSchool)
+        $("#filterMajor").val(majorOfSchool)
+        $("#filterLocation").val(location)
+        $("#filterIncome").val(levelOfIncome)
+        $("#filterGrade").val(grade)
+        
+        // 필터 값 저장
+        currentFilterValues.classOfSchool = classOfSchool
+        currentFilterValues.majorOfSchool = majorOfSchool
+        currentFilterValues.location = location
+        currentFilterValues.levelOfIncome = levelOfIncome
+        currentFilterValues.grade = grade
+        
+        // 필터 섹션 표시
+        showFilterSection()
+        isFilterMode = true
+        
+        // 필터 실행
+        const params = new URLSearchParams()
+        if (classOfSchool) params.append('classOfSchool', classOfSchool)
+        if (majorOfSchool) params.append('majorOfSchool', majorOfSchool)
+        if (location) params.append('location', location)
+        if (levelOfIncome) params.append('levelOfIncome', levelOfIncome)
+        if (grade) params.append('grade', grade)
+        params.append('page', currentPage.toString())
+        params.append('each', currentPageSize.toString())
+        
+        fetch(`api/info/recommendation?${params.toString()}`, {
+            method: "GET"
+        }).then(response => response.json())
+        .then((data) => {
+            if (data.success) {
+                if (data.data.scholarships) {
+                    scholarshipData = data.data.scholarships
+                    currentPagination = data.data.pagination
+                    renderScholarshipList(scholarshipData)
+                    renderPaginationFromData(currentPagination)
+                    showShareSection()
+                }
+            }
+        }).catch((error) => {
+            console.error(error)
+            return false
+        })
+        
+        return true
+    } else if (mode === 'all') {
+        // 전체 목록 모드 복원
+        fetch('api/info/length', {
+            method: "GET"
+        }).then(response => response.json())
+        .then((lengthData) => {
+            if (lengthData.success) {
+                totalScholarships = lengthData.data
+                
+                fetch(`api/info/?page=${currentPage}&each=${currentPageSize}`, {
+                    method: "GET"
+                }).then(response => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        scholarshipData = data.data
+                        renderScholarshipList(scholarshipData)
+                        renderPagination()
+                        showShareSection()
+                    }
+                })
+            }
+        }).catch((error) => {
+            console.error(error)
+            return false
+        })
+        
+        return true
+    }
+    
+    return false
+}
+
+// 현재 상태를 URL로 공유
+function shareCurrentState() {
+    let shareUrl = window.location.origin + window.location.pathname
+    const params = new URLSearchParams()
+    
+    params.append('page', currentPage.toString())
+    params.append('each', currentPageSize.toString())
+    
+    if (isSearchMode && currentSearchKeyword) {
+        // 검색 모드
+        params.append('mode', 'search')
+        params.append('keywords', currentSearchKeyword)
+    } else if (isFilterMode) {
+        // 필터 모드
+        params.append('mode', 'filter')
+        if (currentFilterValues.classOfSchool) params.append('classOfSchool', currentFilterValues.classOfSchool)
+        if (currentFilterValues.majorOfSchool) params.append('majorOfSchool', currentFilterValues.majorOfSchool)
+        if (currentFilterValues.location) params.append('location', currentFilterValues.location)
+        if (currentFilterValues.levelOfIncome) params.append('levelOfIncome', currentFilterValues.levelOfIncome)
+        if (currentFilterValues.grade) params.append('grade', currentFilterValues.grade)
+    } else {
+        // 전체 목록 모드
+        params.append('mode', 'all')
+    }
+    
+    shareUrl += '?' + params.toString()
+    
+    // 클립보드에 복사
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast("공유 링크가 클립보드에 복사되었습니다!", false)
+        }).catch(() => {
+            // fallback
+            fallbackCopyTextToClipboard(shareUrl)
+        })
+    } else {
+        // fallback
+        fallbackCopyTextToClipboard(shareUrl)
+    }
+}
+
+// 클립보드 복사 fallback
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea")
+    textArea.value = text
+    textArea.style.top = "0"
+    textArea.style.left = "0"
+    textArea.style.position = "fixed"
+    
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    
+    try {
+        document.execCommand('copy')
+        showToast("공유 링크가 클립보드에 복사되었습니다!", false)
+    } catch (err) {
+        // 모달로 URL 표시
+        showShareModal(text)
+    }
+    
+    document.body.removeChild(textArea)
+}
+
+// 공유 모달 표시
+function showShareModal(url) {
+    const modalHtml = `
+        <div class="modal fade" id="shareModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">공유 링크</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>아래 링크를 복사하여 공유하세요:</p>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="${url}" id="shareUrlInput" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="selectShareUrl()">선택</button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `
+    
+    $("#shareModal").remove()
+    $("body").append(modalHtml)
+    $("#shareModal").modal('show')
+}
+
+// 공유 URL 선택
+function selectShareUrl() {
+    const input = document.getElementById('shareUrlInput')
+    input.select()
+    input.setSelectionRange(0, 99999)
+}
+
+// 공유 섹션 표시
+function showShareSection() {
+    $("#shareSection").show()
+}
+
+// 공유 섹션 숨김
+function hideShareSection() {
+    $("#shareSection").hide()
+}
+
+// 기존 함수들을 수정하여 공유 섹션 표시/숨김 처리
+function updateShareSectionVisibility() {
+    if (isSearchMode || isFilterMode || (!isRecommendMode && scholarshipData.length > 0)) {
+        showShareSection()
+    } else {
+        hideShareSection()
+    }
 }

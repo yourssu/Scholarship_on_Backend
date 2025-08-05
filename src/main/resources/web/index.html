@@ -64,6 +64,80 @@
                         </div>
                     </div>
                     
+                    <!-- 비로그인 추천 필터 (기본적으로 숨김) -->
+                    <div id="filterSection" class="card border-info mb-3" style="display: none;">
+                        <div class="card-header bg-info-subtle">
+                            <h6 class="mb-0 text-info">
+                                <i class="fas fa-filter"></i> 맞춤 추천 필터 (로그인 없이 이용 가능)
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <label class="form-label">학년</label>
+                                    <select class="form-select" id="filterClass">
+                                        <option value="">전체</option>
+                                        <option value="1">1학년</option>
+                                        <option value="2">2학년</option>
+                                        <option value="3">3학년</option>
+                                        <option value="4">4학년</option>
+                                        <option value="5">5학년</option>
+                                        <option value="6">6학년</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">전공계열</label>
+                                    <select class="form-select" id="filterMajor">
+                                        <option value="">전체</option>
+                                        <option value="인문계열">인문계열</option>
+                                        <option value="사회계열">사회계열</option>
+                                        <option value="교육계열">교육계열</option>
+                                        <option value="공학계열">공학계열</option>
+                                        <option value="자연계열">자연계열</option>
+                                        <option value="의약계열">의약계열</option>
+                                        <option value="예체능계열">예체능계열</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">거주지역</label>
+                                    <input type="text" class="form-control" id="filterLocation" placeholder="예: 서울, 부산">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">소득분위</label>
+                                    <select class="form-select" id="filterIncome">
+                                        <option value="">전체</option>
+                                        <option value="1">1분위</option>
+                                        <option value="2">2분위</option>
+                                        <option value="3">3분위</option>
+                                        <option value="4">4분위</option>
+                                        <option value="5">5분위</option>
+                                        <option value="6">6분위</option>
+                                        <option value="7">7분위</option>
+                                        <option value="8">8분위</option>
+                                        <option value="9">9분위</option>
+                                        <option value="10">10분위</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">성적 (4.5만점)</label>
+                                    <input type="number" class="form-control" id="filterGrade" step="0.1" min="0" max="4.5" placeholder="예: 3.5">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button class="btn btn-info w-100" id="filterRecommendBtn">필터 적용</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 공유 버튼 -->
+                    <div id="shareSection" class="mb-3" style="display: none;">
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-outline-primary btn-sm" id="shareBtn">
+                                <i class="fas fa-share"></i> 현재 결과 공유
+                            </button>
+                        </div>
+                    </div>
+                    
                     <!-- 장학금 목록 -->
                     <div id="scholarshipList">
                         <div class="text-center p-4">
