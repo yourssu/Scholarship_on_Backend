@@ -100,7 +100,8 @@ class RouteDocGenerator {
                     }.joinToString(",\n")
                     
                     val required = formParams.filter { it.required }.map { "\"${it.name}\"" }.joinToString(",")
-                    val requiredSection = if (required.isNotEmpty()) """"required": [$required],""" else ""
+                    val requiredSection = if (required.isNotEmpty()) """,
+                        "required": [$required]""" else ""
                     
                     """"requestBody": {
                         "content": {
@@ -109,8 +110,7 @@ class RouteDocGenerator {
                                     "type": "object",
                                     "properties": {
                                         $properties
-                                    },
-                                    $requiredSection
+                                    }$requiredSection
                                 }
                             }
                         }

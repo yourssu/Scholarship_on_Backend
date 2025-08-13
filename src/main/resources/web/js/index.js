@@ -335,33 +335,32 @@ function loadScholarships() {
         isSearchMode = false
         currentSearchKeyword = ""
         
-        // 먼저 전체 데이터 개수를 가져옴
-        fetch('api/info/length', {
+        const params = new URLSearchParams()
+        params.append('page', currentPage.toString())
+        params.append('each', currentPageSize.toString())
+        
+        // 추천 API를 통해 전체 목록 가져오기 (GET 방식)
+        fetch(`api/info/recommendation?${params.toString()}`, {
             method: "GET"
         }).then(response => response.json())
-        .then((lengthData) => {
-            if (lengthData.success) {
-                totalScholarships = lengthData.data
-                
-                // 그 다음 장학금 목록을 가져옴
-                fetch(`api/info/?page=${currentPage}&each=${currentPageSize}`, {
-                    method: "GET"
-                }).then(response => response.json())
-                .then((data) => {
-                    if (data.success) {
-                        scholarshipData = data.data
-                        renderScholarshipList(scholarshipData)
-                        renderPagination()
-                        showShareSection() // 공유 버튼 표시
-                    } else {
-                        showToast("장학금 정보를 불러오는데 실패했습니다.", true)
-                    }
-                }).catch((error) => {
-                    showToast("네트워크 오류가 발생했습니다.", true)
-                    console.error(error)
-                })
+        .then((data) => {
+            if (data.success) {
+                // 새로운 페이지네이션 형식 처리
+                if (data.data.scholarships) {
+                    scholarshipData = data.data.scholarships
+                    currentPagination = data.data.pagination
+                    renderScholarshipList(scholarshipData)
+                    renderPaginationFromData(currentPagination)
+                    showShareSection() // 공유 버튼 표시
+                } else {
+                    // 기존 형식 대비
+                    scholarshipData = data.data
+                    renderScholarshipList(scholarshipData)
+                    $("#pagination").html("")
+                    showShareSection() // 공유 버튼 표시
+                }
             } else {
-                showToast("전체 데이터 수를 불러오는데 실패했습니다.", true)
+                showToast("장학금 정보를 불러오는데 실패했습니다.", true)
             }
         }).catch((error) => {
             showToast("네트워크 오류가 발생했습니다.", true)
@@ -854,24 +853,22 @@ function restoreFromURL() {
         return true
     } else if (mode === 'all') {
         // 전체 목록 모드 복원
-        fetch('api/info/length', {
+        const params = new URLSearchParams()
+        params.append('page', currentPage.toString())
+        params.append('each', currentPageSize.toString())
+
+        fetch(`api/info/recommendation?${params.toString()}`, {
             method: "GET"
         }).then(response => response.json())
-        .then((lengthData) => {
-            if (lengthData.success) {
-                totalScholarships = lengthData.data
-                
-                fetch(`api/info/?page=${currentPage}&each=${currentPageSize}`, {
-                    method: "GET"
-                }).then(response => response.json())
-                .then((data) => {
-                    if (data.success) {
-                        scholarshipData = data.data
-                        renderScholarshipList(scholarshipData)
-                        renderPagination()
-                        showShareSection()
-                    }
-                })
+        .then((data) => {
+            if (data.success) {
+                if (data.data.scholarships) {
+                    scholarshipData = data.data.scholarships
+                    currentPagination = data.data.pagination
+                    renderScholarshipList(scholarshipData)
+                    renderPaginationFromData(currentPagination)
+                    showShareSection()
+                }
             }
         }).catch((error) => {
             console.error(error)

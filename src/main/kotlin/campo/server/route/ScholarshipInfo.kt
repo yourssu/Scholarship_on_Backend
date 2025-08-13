@@ -4,16 +4,14 @@ import campo.server.annotation.HttpMethodType
 import campo.server.annotation.Parameter
 import campo.server.annotation.ParameterType
 import campo.server.annotation.RouteDesc
+import campo.server.scholarship.loadKOSAF
 import campo.server.util.ApiExamples
 import campo.server.util.ResponseUtil
 import io.vertx.core.Vertx
 import io.vertx.core.internal.logging.LoggerFactory
 import kotlinx.datetime.LocalDate
 import org.jetbrains.kotlinx.dataframe.DataFrame
-import org.jetbrains.kotlinx.dataframe.api.dropNulls
-import org.jetbrains.kotlinx.dataframe.api.filter
-import org.jetbrains.kotlinx.dataframe.api.getRows
-import org.jetbrains.kotlinx.dataframe.api.sortByDesc
+import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.readCsvStr
 import org.jetbrains.kotlinx.dataframe.io.toJson
 import java.io.BufferedReader
@@ -34,68 +32,14 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
         while(br.readLine().also { sb.append(it); sb.append(ls); } != null) {}
         br.close()
 
-        df = DataFrame.readCsvStr(sb.toString())
+        df = DataFrame.readCsvStr(sb.toString()).concat(loadKOSAF())
 
         logger.info("장학금 정보를 불러왔습니다. 데이터 수 : ${df.rowsCount()}")
 
-        allScholarship()
-        totalScholarshipDataSize()
         recommendation()
         recommendationWithoutAuth()
-//        recommendationDetail()
+        detail()
         search()
-    }
-
-    @RouteDesc(
-        "/api/info/",
-        "전체 장학금 공고 리스트 조회",
-        HttpMethodType.GET,
-        ApiExamples.SCHOLARSHIP_LIST_SUCCESS,
-        [
-            ApiExamples.INTERNAL_SERVER_ERROR
-        ],
-        parameters = [
-            Parameter("page", "페이지(0부터 n까지) (기본값 0)", ParameterType.QUERY, false, "0"),
-            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10")
-        ]
-    )
-    fun allScholarship() {
-        get("/").handler { context ->
-            val page = context.request().getParam("page")?.toInt() ?: 0
-            val each = context.request().getParam("each")?.toInt() ?: 10
-
-            ResponseUtil.successJson(context, "장학금 공고를 불러왔습니다.",
-                run {
-                    val sortedDf = df.sortByDesc { "모집종료일"<LocalDate>() }
-                    val totalCount = sortedDf.rowsCount()
-                    val startIndex = page * each
-                    val endIndex = minOf(startIndex + each, totalCount)
-                    
-                    if (startIndex >= totalCount) {
-                        sortedDf.getRows(0 until 0)
-                    } else {
-                        sortedDf.getRows(startIndex until endIndex)
-                    }
-                }.toJson()
-                )
-        }
-    }
-
-    @RouteDesc(
-        "/api/info/length",
-        "전체 장학금 데이터 수 조회. 전체 공고 페이지네이션 구현에 사용하세요",
-        HttpMethodType.GET,
-        ApiExamples.SCHOLARSHIP_COUNT_SUCCESS,
-        [
-            ApiExamples.INTERNAL_SERVER_ERROR
-        ]
-    )
-    fun totalScholarshipDataSize() {
-        get("/length").handler { context ->
-            ResponseUtil.successTyped(context, "장학금 공고 데이터 수를 불러왔습니다.",
-                df.rowsCount()
-            )
-        }
     }
 
     @RouteDesc(
@@ -181,7 +125,7 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
     @RouteDesc(
         "/api/info/recommendation",
-        "사용자 개인 조건에 맞는 장학금 공고 조회 (로그인 불필요)",
+        "장학금 공고 전체 조회 및 필터 제공 (로그인 불필요)",
         HttpMethodType.GET,
         ApiExamples.SCHOLARSHIP_RECOMMENDATION_SUCCESS,
         [
@@ -313,18 +257,43 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
         """.trimIndent()
     }
 
-//    @RouteDesc(
-//        "/info/recommendation/detail",
-//        "개별 장학금 상세 정보 조회",
-//        HttpMethodType.GET,
-//        ApiExamples.SCHOLARSHIP_DETAIL_SUCCESS,
-//        [
-//            ApiExamples.SCHOLARSHIP_NOT_FOUND
-//        ]
-//    )
-//    fun recommendationDetail() {
-//
-//    }
+    @RouteDesc(
+        path = "/api/info/detail/{id}",
+        description = "개별 장학금 상세 정보 조회",
+        method = HttpMethodType.GET,
+        successExample = ApiExamples.SCHOLARSHIP_DETAIL_SUCCESS,
+        errorExamples = [
+            ApiExamples.SCHOLARSHIP_NOT_FOUND
+        ],
+        parameters = [
+            Parameter("id", "조회할 장학금의 고유 번호", ParameterType.PATH, true, "1")
+        ]
+    )
+    fun detail() {
+        get("/detail/:id").handler { context ->
+            val id = context.pathParam("id").toIntOrNull()
+
+            if (id == null) {
+                ResponseUtil.badRequest(context, "장학금을 찾을 수 없습니다.")
+                return@handler
+            }
+
+            println(df.head(4))
+
+            val scholarship = df.dropNulls("번호").filter {
+                "번호"<Int?>() == id
+            }
+
+            if(scholarship.isEmpty()) {
+                ResponseUtil.badRequest(context, "장학금을 찾을 수 없습니다.")
+                return@handler
+            }
+
+            val scholarshipJson = scholarship.toJson()
+
+            ResponseUtil.successJson(context, "장학금 상세 정보를 불러왔습니다.", scholarshipJson)
+        }
+    }
 
     @RouteDesc(
         "/api/info/search",

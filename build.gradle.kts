@@ -26,6 +26,7 @@ dependencies {
     implementation("io.github.cdimascio:dotenv-kotlin:6.5.1")
 
     implementation("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2")
+    implementation("org.jsoup:jsoup:1.21.1")
 
     testImplementation(kotlin("test"))
     testImplementation("io.vertx:vertx-junit5:5.0.1")
