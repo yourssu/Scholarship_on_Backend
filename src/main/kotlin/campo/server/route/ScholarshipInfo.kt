@@ -157,38 +157,11 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
                 .dropNulls("소득기준 상세내용")
                 .dropNulls("성적기준 상세내용")
                 .filter { row ->
-                    // 학년 조건 확인 (학년을 학기로 변환)
-                    val classCondition = "학년구분"<String>()
-                    val classMatch = classOfSchool == null || classCondition == "해당없음" ||
-                            classCondition.split("/").any { semester ->
-                                val userSemesters = getSemestersFromClass(classOfSchool)
-                                userSemesters.any { userSemester -> semester.contains("${userSemester}학기") }
-                            }
-
-                    // 전공 조건 확인
-                    val majorCondition = "학과구분"<String>()
-                    val majorMatch = majorOfSchool == null || majorCondition == "해당없음" ||
-                            majorCondition.contains(majorOfSchool) ||
-                            majorCondition.contains("전체학과")
-
-                    // 거주지 조건 확인
-                    val locationCondition = "지역거주여부 상세내용"<String>()
-                    val locationMatch = location == null || locationCondition == "해당없음" ||
-                            locationCondition.contains(location)
-
-                    // 소득 조건 확인 (소득분위가 낮을수록 조건에 부합)
-                    val incomeCondition = "소득기준 상세내용"<String>()
-                    val incomeMatch = levelOfIncome == null || incomeCondition == "해당없음" ||
-                            incomeCondition.contains("제한없음") ||
-                            incomeCondition.contains("${levelOfIncome}분위")
-
-                    // 성적 조건 확인 (문자열에서 숫자 추출하여 비교)
-                    val gradeCondition = "성적기준 상세내용"<String>()
-                    val gradeMatch = grade == null || gradeCondition == "해당없음" ||
-                            gradeCondition.contains("제한없음") ||
-                            extractGradeFromString(gradeCondition)?.let { requiredGrade ->
-                                grade >= requiredGrade
-                            } ?: true
+                    val classMatch = classOfSchool == null || checkClass(row["학년구분"].toString(), classOfSchool)
+                    val majorMatch = majorOfSchool == null || checkMajor(row["학과구분"].toString(), majorOfSchool)
+                    val locationMatch = location == null || checkLocation(row["지역거주여부 상세내용"].toString(), location)
+                    val incomeMatch = levelOfIncome == null || checkIncome(row["소득기준 상세내용"].toString(), levelOfIncome)
+                    val gradeMatch = grade == null || checkGrade(row["성적기준 상세내용"].toString(), grade)
 
                     classMatch && majorMatch && locationMatch && incomeMatch && gradeMatch
                 }
@@ -196,16 +169,56 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
             val responseJson = createPaginatedResponse(filteredScholarships, page, each)
 
-            ResponseUtil.successJson(context, "개인별 장학금 공고를 불러왔습니다.",
+            ResponseUtil.successJson(
+                context, "개인별 장학금 공고를 불러왔습니다.",
                 responseJson
             )
         }
     }
 
+    private fun checkClass(condition: String, userClass: Int): Boolean {
+        if (condition == "해당없음" || condition == "제한없음") return true
+        val userSemesters = getSemestersFromClass(userClass)
+        return condition.split("/", ",", " ").any { part ->
+            val trimmedPart = part.trim()
+            if (trimmedPart.contains("학년")) {
+                val year = trimmedPart.filter { it.isDigit() }.toIntOrNull()
+                year == userClass
+            } else if (trimmedPart.contains("학기")) {
+                val semester = trimmedPart.filter { it.isDigit() }.toIntOrNull()
+                semester in userSemesters
+            } else {
+                false
+            }
+        }
+    }
+
+    private fun checkMajor(condition: String, userMajor: String): Boolean {
+        if (condition == "해당없음" || condition == "제한없음" || condition.contains("전체학과")) return true
+        return condition.contains(userMajor)
+    }
+
+    private fun checkLocation(condition: String, userLocation: String): Boolean {
+        if (condition == "해당없음" || condition == "제한없음") return true
+        return condition.contains(userLocation)
+    }
+
+    private fun checkIncome(condition: String, userIncome: Int): Boolean {
+        if (condition == "해당없음" || condition == "제한없음") return true
+        val incomeLevels = condition.split(" ", ",", "/").mapNotNull { it.filter { it.isDigit() }.toIntOrNull() }
+        return incomeLevels.isEmpty() || userIncome <= incomeLevels.maxOrNull()!!
+    }
+
+    private fun checkGrade(condition: String, userGrade: Double): Boolean {
+        if (condition == "해당없음" || condition.contains("제한없음")) return true
+        val requiredGrade = extractGradeFromString(condition)
+        return requiredGrade == null || userGrade >= requiredGrade
+    }
+
     private fun extractGradeFromString(gradeString: String): Double? {
-        val regex = Regex("""(\d+\.?\d*)\s*이상""")
+        val regex = Regex("\\d+\\.?\\d*")
         val matchResult = regex.find(gradeString)
-        return matchResult?.groupValues?.get(1)?.toDoubleOrNull()
+        return matchResult?.value?.toDoubleOrNull()
     }
 
     private fun getSemestersFromClass(classYear: Int): List<Int> {
