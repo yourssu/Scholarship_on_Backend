@@ -1,5 +1,6 @@
 package campo.server.scholarship
 
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.add
 import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
@@ -44,6 +45,7 @@ fun loadKOSAF(): DataFrame<*> {
     val scholarEnds = mutableListOf<String>()
     val scholarHomepages = mutableListOf<String>()
 
+
     for(element in items) {
         val info = Jsoup.connect(baseUrl + element.attr("href")).get().select("tbody").select(".subject")
         var result = info.find { item ->
@@ -75,12 +77,13 @@ fun loadKOSAF(): DataFrame<*> {
             val notice = Jsoup.connect(noticeURL).get()
             val content = notice.select("tbody").text()
             val dateRange = extractAndFormatDates(content)
-
             println(result.text() + " : " + dateRange)
-            scholarNames.add(result.text())
-            scholarStarts.add(dateRange.split(" ~ ")[0])
-            scholarEnds.add(dateRange.split(" ~ ")[1])
-            scholarHomepages.add(noticeURL)
+            if(dateRange != "신청 기간 정보 없음") {
+                scholarNames.add(result.text())
+                scholarStarts.add(dateRange.split(" ~ ")[0])
+                scholarEnds.add(dateRange.split(" ~ ")[1])
+                scholarHomepages.add(noticeURL)
+            }
 
         } else {
             println(element.text() + " : " + "결과 없음")

@@ -17,8 +17,8 @@ dependencies {
     implementation("io.vertx:vertx-web:5.0.1")
 
     implementation("io.vertx:vertx-jdbc-client:5.0.1")
-    implementation("io.vertx:vertx-auth-sql-client:5.0.1")
     implementation("org.xerial:sqlite-jdbc:3.50.2.0")
+    implementation("io.vertx:vertx-auth-sql-client:5.0.1")
     
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.21")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
@@ -31,6 +31,8 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("io.vertx:vertx-junit5:5.0.1")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 }
 
 tasks.shadowJar {
