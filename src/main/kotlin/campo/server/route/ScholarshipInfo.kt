@@ -36,10 +36,55 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
         logger.info("장학금 정보를 불러왔습니다. 데이터 수 : ${df.rowsCount()}")
 
+        allScholarship()
+        totalScholarshipDataSize()
         recommendation()
         recommendationWithoutAuth()
         detail()
         search()
+        allScholarship2()
+    }
+
+    @RouteDesc(
+        "/api/info/",
+        "전체 장학금 공고 리스트 조회",
+        HttpMethodType.GET,
+        ApiExamples.SCHOLARSHIP_LIST_SUCCESS,
+        [
+            ApiExamples.INTERNAL_SERVER_ERROR
+        ],
+        parameters = [
+            Parameter("page", "페이지(0부터 n까지) (기본값 0)", ParameterType.QUERY, false, "0"),
+            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10")
+        ]
+    )
+    fun allScholarship() {
+        get("/").handler { context ->
+            val page = context.request().getParam("page")?.toInt() ?: 0
+            val each = context.request().getParam("each")?.toInt() ?: 10
+
+            ResponseUtil.successJson(context, "장학금 공고를 불러왔습니다.",
+                df.sortByDesc { "모집종료일"<LocalDate>() }
+                    .getRows((page*each) until (page*each+each)).toJson()
+            )
+        }
+    }
+
+    @RouteDesc(
+        "/api/info/length",
+        "전체 장학금 데이터 수 조회. 전체 공고 페이지네이션 구현에 사용하세요",
+        HttpMethodType.GET,
+        ApiExamples.SCHOLARSHIP_COUNT_SUCCESS,
+        [
+            ApiExamples.INTERNAL_SERVER_ERROR
+        ]
+    )
+    fun totalScholarshipDataSize() {
+        get("/length").handler { context ->
+            ResponseUtil.successTyped(context, "장학금 공고 데이터 수를 불러왔습니다.",
+                df.rowsCount()
+            )
+        }
     }
 
     @RouteDesc(
@@ -340,6 +385,18 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
             ResponseUtil.successJson(context, "장학금 공고를 불러왔습니다.",
                 responseJson
+            )
+        }
+    }
+
+    fun allScholarship2() {
+        get().handler { context ->
+            val page = context.request().getParam("page")?.toInt() ?: 0
+            val each = context.request().getParam("each")?.toInt() ?: 10
+
+            ResponseUtil.successJson(context, "장학금 공고를 불러왔습니다.",
+                df.sortByDesc { "모집종료일"<LocalDate>() }
+                    .getRows((page*each) until (page*each+each)).toJson()
             )
         }
     }

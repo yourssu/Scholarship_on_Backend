@@ -8,11 +8,13 @@ import campo.server.route.ScholarshipInfo
 import campo.server.util.ResponseUtil
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
+import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServer
 import io.vertx.core.internal.logging.LoggerFactory
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
+import io.vertx.ext.web.handler.CorsHandler
 import io.vertx.ext.web.handler.SessionHandler
 import io.vertx.ext.web.sstore.LocalSessionStore
 import java.net.InetAddress
@@ -22,10 +24,25 @@ import java.util.*
 val logger = LoggerFactory.getLogger("Scholarship")
 
 const val HTTP_PORT = 80
+const val HTTPS_PORT = 443
 
 fun main() {
     val vertx = Vertx.vertx()
     val mainRouter = Router.router(vertx)
+
+    mainRouter.route().handler(
+        CorsHandler.create()
+            .addOrigin("*")
+            .allowedMethod(HttpMethod.GET)
+            .allowedMethod(HttpMethod.POST)
+            .allowedMethod(HttpMethod.PUT)
+            .allowedMethod(HttpMethod.DELETE)
+            .allowedMethod(HttpMethod.OPTIONS)
+            .allowedHeader("Accept")
+            .allowedHeader("Authorization")
+            .allowedHeader("Content-Type")
+            .allowedHeader("X-Requested-With")
+    )
 
     AuthDatabase(vertx)
 

@@ -1,6 +1,6 @@
 package campo.server.scholarship
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.LocalDate
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.add
 import org.jetbrains.kotlinx.dataframe.api.dataFrameOf
@@ -41,8 +41,8 @@ fun loadKOSAF(): DataFrame<*> {
     }
 
     val scholarNames = mutableListOf<String>()
-    val scholarStarts = mutableListOf<String>()
-    val scholarEnds = mutableListOf<String>()
+    val scholarStarts = mutableListOf<LocalDate>()
+    val scholarEnds = mutableListOf<LocalDate>()
     val scholarHomepages = mutableListOf<String>()
 
 
@@ -80,8 +80,8 @@ fun loadKOSAF(): DataFrame<*> {
             println(result.text() + " : " + dateRange)
             if(dateRange != "신청 기간 정보 없음") {
                 scholarNames.add(result.text())
-                scholarStarts.add(dateRange.split(" ~ ")[0])
-                scholarEnds.add(dateRange.split(" ~ ")[1])
+                scholarStarts.add(LocalDate.parse(dateRange.split(" ~ ")[0]))
+                scholarEnds.add(LocalDate.parse(dateRange.split(" ~ ")[1]))
                 scholarHomepages.add(noticeURL)
             }
 

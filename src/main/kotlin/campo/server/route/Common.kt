@@ -1,20 +1,37 @@
 package campo.server.route
 
-import campo.server.annotation.RouteDesc
 import campo.server.annotation.HttpMethodType
-import campo.server.util.ResponseUtil
+import campo.server.annotation.RouteDesc
 import io.vertx.core.Vertx
 import io.vertx.core.internal.logging.LoggerFactory
-import io.vertx.ext.web.impl.RouterImpl
 
 @RouteDesc(path = "/common", "각종 서식을 처리합니다.")
 class Common(vertx: Vertx) : ScholarRouter(vertx) {
     val logger = LoggerFactory.getLogger(javaClass)
 
     init {
+        sensitiveInfo()
         privacy()
         term()
     }
+
+
+    @RouteDesc("/common/sensitive", "민감정보 처리방침을 제공합니다.", HttpMethodType.GET)
+    fun sensitiveInfo() {
+        get("/sensitive").handler { context ->
+            context.response()
+                .setStatusCode(200)
+                .putHeader("content-type", "application/pdf; charset=utf-8")
+                .sendFile("sensitive.pdf")
+                .onFailure {
+                    context.response()
+                        .setStatusCode(500)
+                        .putHeader("content-type", "text/plain; charset=utf-8")
+                        .end("현재 민감정보 처리방침 제공이 어렵습니다.")
+                }
+        }
+    }
+
 
     @RouteDesc("/common/privacy", "개인정보 처리방침을 제공합니다.", HttpMethodType.GET)
     fun privacy() {
