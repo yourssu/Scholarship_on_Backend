@@ -45,6 +45,19 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
         allScholarship2()
     }
 
+    private fun DataFrame<*>.applySort(sortBy: String?, sortOrder: String?): DataFrame<*> {
+        val isAsc = sortOrder.equals("asc", ignoreCase = true)
+
+        return when (sortBy) {
+            "번호" -> if (isAsc) this.sortBy { "번호"<Int>() } else this.sortByDesc { "번호"<Int>() }
+            "운영기관명" -> if (isAsc) this.sortBy { "운영기관명"<String>() } else this.sortByDesc { "운영기관명"<String>() }
+            "상품명" -> if (isAsc) this.sortBy { "상품명"<String>() } else this.sortByDesc { "상품명"<String>() }
+            "모집시작일" -> if (isAsc) this.sortBy { "모집시작일"<LocalDate>() } else this.sortByDesc { "모집시작일"<LocalDate>() }
+            "모집종료일" -> if (isAsc) this.sortBy { "모집종료일"<LocalDate>() } else this.sortByDesc { "모집종료일"<LocalDate>() }
+            else -> if (isAsc) this.sortBy { "모집종료일"<LocalDate>() } else this.sortByDesc { "모집종료일"<LocalDate>() } // Default sorting
+        }.dropNulls()
+    }
+
     @RouteDesc(
         "/api/info/",
         "전체 장학금 공고 리스트 조회",
@@ -55,16 +68,20 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
         ],
         parameters = [
             Parameter("page", "페이지(0부터 n까지) (기본값 0)", ParameterType.QUERY, false, "0"),
-            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10")
+            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10"),
+            Parameter("sortBy", "정렬 기준 (번호, 운영기관명, 상품명, 모집시작일, 모집종료일)", ParameterType.QUERY, false),
+            Parameter("sortOrder", "정렬 순서 (asc 또는 desc)", ParameterType.QUERY, false)
         ]
     )
     fun allScholarship() {
         get("/").handler { context ->
             val page = context.request().getParam("page")?.toInt() ?: 0
             val each = context.request().getParam("each")?.toInt() ?: 10
+            val sortBy = context.request().getParam("sortBy")
+            val sortOrder = context.request().getParam("sortOrder")
 
             ResponseUtil.successJson(context, "장학금 공고를 불러왔습니다.",
-                df.sortByDesc { "모집종료일"<LocalDate>() }
+                df.applySort(sortBy, sortOrder)
                     .getRows((page*each) until (page*each+each)).toJson()
             )
         }
@@ -98,7 +115,9 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
         ],
         parameters = [
             Parameter("page", "페이지(0부터 n까지) (기본값 0)", ParameterType.QUERY, false, "0"),
-            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10")
+            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10"),
+            Parameter("sortBy", "정렬 기준 (번호, 운영기관명, 상품명, 모집시작일, 모집종료일)", ParameterType.QUERY, false),
+            Parameter("sortOrder", "정렬 순서 (asc 또는 desc)", ParameterType.QUERY, false)
         ]
     )
     fun recommendation() {
@@ -116,6 +135,8 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
             val page = context.request().getParam("page")?.toInt() ?: 0
             val each = context.request().getParam("each")?.toInt() ?: 10
+            val sortBy = context.request().getParam("sortBy")
+            val sortOrder = context.request().getParam("sortOrder")
 
             val filteredScholarships = df.dropNulls("학년구분")
                 .dropNulls("학과구분")
@@ -125,40 +146,40 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
                 .filter { row ->
                     // 학년 조건 확인 (학년을 학기로 변환)
                     val classCondition = "학년구분"<String>()
-                    val classMatch = classCondition == "해당없음" || 
+                    val classMatch = classCondition == "해당없음" ||
                         classCondition.split("/").any { semester ->
                             val userSemesters = getSemestersFromClass(user.classOfSchool)
                             userSemesters.any { userSemester -> semester.contains("${userSemester}학기") }
                         }
-                    
-                    // 전공 조건 확인  
+
+                    // 전공 조건 확인
                     val majorCondition = "학과구분"<String>()
-                    val majorMatch = majorCondition == "해당없음" || 
+                    val majorMatch = majorCondition == "해당없음" ||
                         majorCondition.contains(user.majorOfSchool) ||
                         majorCondition.contains("전체학과")
-                    
+
                     // 거주지 조건 확인
                     val locationCondition = "지역거주여부 상세내용"<String>()
-                    val locationMatch = locationCondition == "해당없음" || 
+                    val locationMatch = locationCondition == "해당없음" ||
                         locationCondition.contains(user.location)
-                    
+
                     // 소득 조건 확인 (소득분위가 낮을수록 조건에 부합)
                     val incomeCondition = "소득기준 상세내용"<String>()
-                    val incomeMatch = incomeCondition == "해당없음" || 
+                    val incomeMatch = incomeCondition == "해당없음" ||
                         incomeCondition.contains("제한없음") ||
                         incomeCondition.contains("${user.levelOfIncome}분위")
-                    
+
                     // 성적 조건 확인 (문자열에서 숫자 추출하여 비교)
                     val gradeCondition = "성적기준 상세내용"<String>()
-                    val gradeMatch = gradeCondition == "해당없음" || 
+                    val gradeMatch = gradeCondition == "해당없음" ||
                         gradeCondition.contains("제한없음") ||
                         extractGradeFromString(gradeCondition)?.let { requiredGrade ->
                             user.grade >= requiredGrade
                         } ?: true
-                    
+
                     classMatch && majorMatch && locationMatch && incomeMatch && gradeMatch
                 }
-                .sortByDesc { "모집종료일"<LocalDate>() }
+                .applySort(sortBy, sortOrder)
 
             val responseJson = createPaginatedResponse(filteredScholarships, page, each)
 
@@ -183,7 +204,9 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
             Parameter("levelOfIncome", "소득분위 (1-10)", ParameterType.QUERY, false, "3"),
             Parameter("grade", "성적 (0-4.5)", ParameterType.QUERY, false, "3.5"),
             Parameter("page", "페이지(0부터 n까지) (기본값 0)", ParameterType.QUERY, false, "0"),
-            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10")
+            Parameter("each", "페이지 당 장학금 공고 수 (기본값 10)", ParameterType.QUERY, false, "10"),
+            Parameter("sortBy", "정렬 기준 (번호, 운영기관명, 상품명, 모집시작일, 모집종료일)", ParameterType.QUERY, false),
+            Parameter("sortOrder", "정렬 순서 (asc 또는 desc)", ParameterType.QUERY, false)
         ]
     )
     fun recommendationWithoutAuth() {
@@ -195,6 +218,8 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
             val grade = context.request().getParam("grade")?.toDoubleOrNull()
             val page = context.request().getParam("page")?.toInt() ?: 0
             val each = context.request().getParam("each")?.toInt() ?: 10
+            val sortBy = context.request().getParam("sortBy")
+            val sortOrder = context.request().getParam("sortOrder")
 
             val filteredScholarships = df.dropNulls("학년구분")
                 .dropNulls("학과구분")
@@ -210,7 +235,7 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
 
                     classMatch && majorMatch && locationMatch && incomeMatch && gradeMatch
                 }
-                .sortByDesc { "모집종료일"<LocalDate>() }
+                .applySort(sortBy, sortOrder)
 
             val responseJson = createPaginatedResponse(filteredScholarships, page, each)
 
@@ -288,7 +313,7 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
         val totalPages = if (totalCount == 0) 0 else (totalCount - 1) / each + 1
         val startIndex = page * each
         val endIndex = minOf(startIndex + each, totalCount)
-        
+
         val pagedData = if (startIndex >= totalCount) {
             dataFrame.getRows(0 until 0)
         } else {
@@ -306,7 +331,7 @@ class ScholarshipInfo(vertx: Vertx) : ScholarRouter(vertx) {
                 "hasPrev": ${page > 0}
             }
         """.trimIndent()
-        
+
         return """
             {
                 "scholarships": $scholarshipsJson,
